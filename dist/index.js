@@ -12,6 +12,7 @@ const github = __nccwpck_require__(5438);
 const YAML = __nccwpck_require__(1917);
 const prb = __nccwpck_require__(4644);
 const coverage = __nccwpck_require__(2073);
+const pkg = __nccwpck_require__(6315);
 
 const action = {
     async main() {
@@ -45,6 +46,8 @@ const action = {
         let variables = [];
         let incorrectCommand = false;
         let commandName = args[0];
+        
+        let packageAliases = [];
 
         core.info(`Using Command: ${commandName}`)
 
@@ -57,13 +60,16 @@ const action = {
                 variables.push(arg);
             } else if (command.result) {
                 result.push(command.result);
+                if (command.package_aliases !== undefined) {
+                    packageAliases.push(command.package_aliases);
+                }
             } else if (command.commands) {
                 commands = command.commands;
             }
         }
 
         if (result.length > 0) {
-            return this.succeed(result, variables, commandName);
+            return this.succeed(result, variables, commandName, packageAliases);
         } else {
             let consumedWithSlash = consumed.map((c, idx) => idx === 0 ? `/${c}` : c);
             let failed = consumedWithSlash.join(' ');
@@ -139,7 +145,7 @@ const action = {
 
         return (command.name === arg || aliases.includes(arg));
     },
-    succeed(result, variables, command, message) {
+    succeed(result, variables, command, packageAliases, message) {
 
         let jsonValue = [];
         let jsonKey = [];
@@ -154,21 +160,25 @@ const action = {
         let pipelineId = new Map;
         pipelineId.set(jsonKey[0], jsonValue);
         
-        let variableMap = new Map;
+        let variableMap = {};
         if(command === "rebuild") {
             variableMap = prb.parseVariables(variables);
         }
         if(command === "coverage") {
             variableMap = coverage.parseVariables(variables);
         }
+        if(command === "package") {
+            variableMap = pkg.parseVariables(variables, packageAliases[0]);
+        }
       
-        core.info(`Success: ${JSON.stringify(Object.fromEntries(pipelineId))} ${JSON.stringify(Object.fromEntries(variableMap))}`);
+        core.info(`Success: ${JSON.stringify(Object.fromEntries(pipelineId))} ${JSON.stringify(variableMap)}`);
         core.setOutput('result', JSON.stringify(Object.fromEntries(pipelineId)));
-        core.setOutput('variables', JSON.stringify(Object.fromEntries(variableMap)));
+        core.setOutput('variables', JSON.stringify(variableMap));
         if (message) {
             core.setOutput('message', `> ${message}`);
         }
         core.setOutput('reaction', 'rocket');
+        return variableMap;
     },
     fail(message) {
         core.info(`Failed: ${message}`);
@@ -191,33 +201,53 @@ if (require.main === require.cache[eval('__filename')]) {
 /***/ }),
 
 /***/ 2073:
-/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
+/***/ ((module) => {
 
-"use strict";
-__nccwpck_require__.r(__webpack_exports__);
-/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
-/* harmony export */   "parseVariables": () => (/* binding */ parseVariables)
-/* harmony export */ });
 
 function parseVariables(variables) {
-    let variableMap = new Map;
+    let variableMap = {};
     if (variables.length > 0 ) {
-        variableMap.set("targets", variables.join(' '));
+        variableMap.targets = variables.join(' ');
     }
     return variableMap;
 }
+
+module.exports = {parseVariables: parseVariables};
+
+
+/***/ }),
+
+/***/ 6315:
+/***/ ((module) => {
+
+
+function parseVariables(variables, aliasMap) {
+    const variableMap = {};
+    let variableString = variables.join(' ');
+
+    const replaceVars = (alias, platforms) => variableString = variableString.replace(alias, platforms.join(' '));
+
+    Object.keys(aliasMap).forEach((key) => {
+        const alias = aliasMap[key];
+        if (alias.aliases && alias.platforms) {
+            alias.aliases.forEach((a) => replaceVars(a, alias.platforms));
+        }
+    });
+
+    if (variableString.length > 0 ) {
+        variableMap.platforms = variableString;
+    }
+    return variableMap;
+}
+
+module.exports = {parseVariables: parseVariables};
 
 
 /***/ }),
 
 /***/ 4644:
-/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
+/***/ ((module) => {
 
-"use strict";
-__nccwpck_require__.r(__webpack_exports__);
-/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
-/* harmony export */   "parseVariables": () => (/* binding */ parseVariables)
-/* harmony export */ });
 
 function parseVariables(variables) {
     const presetIndex = variables.indexOf("--preset");
@@ -229,16 +259,18 @@ function parseVariables(variables) {
         variables.splice(presetIndex+1);
     }
     // Create a Map of variables passed to azure pipelines
-    let variableMap = new Map;
+    let variableMap = {};
     if (variables.length > 0 ) {
-        variableMap.set("generateArgs", variables.join(' '));
+        variableMap.generateArgs = variables.join(' ');
     }
 
     if ( preset.length > 0 ) {
-        variableMap.set("presets", preset.toString());
+        variableMap.presets = preset.toString();
     }
     return variableMap;
 }
+
+module.exports = {parseVariables: parseVariables};
 
 
 /***/ }),
@@ -10588,34 +10620,6 @@ module.exports = require("zlib");;
 /******/ 	}
 /******/ 	
 /************************************************************************/
-/******/ 	/* webpack/runtime/define property getters */
-/******/ 	(() => {
-/******/ 		// define getter functions for harmony exports
-/******/ 		__nccwpck_require__.d = (exports, definition) => {
-/******/ 			for(var key in definition) {
-/******/ 				if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
-/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 				}
-/******/ 			}
-/******/ 		};
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	(() => {
-/******/ 		__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/make namespace object */
-/******/ 	(() => {
-/******/ 		// define __esModule on exports
-/******/ 		__nccwpck_require__.r = (exports) => {
-/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
-/******/ 			}
-/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
-/******/ 		};
-/******/ 	})();
-/******/ 	
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";/************************************************************************/
